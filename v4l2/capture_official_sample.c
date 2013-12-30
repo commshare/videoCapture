@@ -41,6 +41,8 @@
 
 #include <linux/videodev2.h>
 
+#define DEV_NAME "/dev/video0" //ADD BY ME
+
 #define CLEAR(x) memset (&(x), 0, sizeof (x))
 
 typedef enum {
@@ -121,6 +123,7 @@ read_frame			(void)
 		break;
 
 	case IO_METHOD_MMAP:
+	//printf("###USE MMAP FOR CAPTURE ######\n"); //YES
 		CLEAR (buf);
 
             	buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -192,10 +195,10 @@ read_frame			(void)
 static void
 mainloop                        (void)
 {
+	printf("#IN##Mainloop BEGIN ######\n");
+	//ADD BY ME BEGIN
 	unsigned int count;
-
         count = 100;
-
         while (count-- > 0) {
                 for (;;) {
                         fd_set fds;
@@ -205,21 +208,23 @@ mainloop                        (void)
                         FD_ZERO (&fds);
                         FD_SET (fd, &fds);
 
-                        /* Timeout. */
+                        /* Timeout. */ //2秒的超时等待
                         tv.tv_sec = 2;
                         tv.tv_usec = 0;
-
+						//等待摄像头设备可读
                         r = select (fd + 1, &fds, NULL, NULL, &tv);
 
                         if (-1 == r) {
                                 if (EINTR == errno)
-                                        continue;
-
+                                 {
+								 	printf("####  select CONTINUE \n");
+								 	continue;
+								 }
                                 errno_exit ("select");
                         }
 
                         if (0 == r) {
-                                fprintf (stderr, "select timeout\n");
+                                fprintf (stderr, "select timeout, EXIT \n");
                                 exit (EXIT_FAILURE);
                         }
 
@@ -229,6 +234,7 @@ mainloop                        (void)
 			/* EAGAIN - continue select loop. */
                 }
         }
+	printf("##IN#Mainloop END ######\n");
 }
 
 static void
@@ -601,7 +607,7 @@ open_device                     (void)
                          dev_name, errno, strerror (errno));
                 exit (EXIT_FAILURE);
         }
-        printf("##open device camera OK !\n");
+        printf("##open device[%d] camera [%s] OK !\n",fd,DEV_NAME);
 }
 
 static void
@@ -637,7 +643,6 @@ int
 main                            (int                    argc,
                                  char **                argv)
 {
-        dev_name = "/dev/video0";
 #if 0
         for (;;) {
                 int index;
@@ -681,23 +686,17 @@ main                            (int                    argc,
                 }
         }
 #endif
-        io = IO_METHOD_MMAP;
-
+        dev_name = DEV_NAME;
+        io = IO_METHOD_MMAP; //ADD BY ME
         open_device ();
-
         init_device ();
-
         start_capturing ();
-
+		//////////PROCESS//BEGIN/////////////////
         mainloop ();
-
+		//////////PROCESS END//////////////////////////
         stop_capturing ();
-
         uninit_device ();
-
         close_device ();
-
         exit (EXIT_SUCCESS);
-
         return 0;
 }
